@@ -1,18 +1,27 @@
 package main
 
 import (
+	"errors"
 	"log"
+	"net/http"
+	"time"
 
-	"github.com/alimfor/orderflow/services/user-service/internal/handler"
-	"github.com/gin-gonic/gin"
+	"github.com/alimfor/orderflow/services/user-service/internal/server"
 )
 
 func main() {
-	router := gin.Default()
-	router.GET("/health", handler.Health)
+	router := server.NewRouter()
 
-	log.Println("User Service started on port 8081")
-	if err := router.Run(":8081"); err != nil {
-		log.Fatalln(err)
+	srv := &http.Server{
+		Addr:        ":8081",
+		Handler:     router,
+		ReadTimeout: 5 * time.Second,
+		IdleTimeout: 120 * time.Second,
+	}
+
+	log.Println("User service started on :8081")
+
+	if err := srv.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
+		log.Fatal(err)
 	}
 }
