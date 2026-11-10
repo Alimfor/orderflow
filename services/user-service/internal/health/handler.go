@@ -15,6 +15,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(Response{Status: "ok"})
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Failed to write health response: %v", err)
 	}
 }

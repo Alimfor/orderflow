@@ -37,19 +37,14 @@ func main() {
 
 	go func() {
 		log.Println("Server started on :8081")
-		err := srv.ListenAndServe()
-		if errors.Is(err, http.ErrServerClosed) {
-			err = nil
-		}
-
-		serverErrors <- err
+		serverErrors <- srv.ListenAndServe()
 	}()
 
 	select {
 	case <-ctx.Done():
 		log.Println("Shutdown signal received")
 	case err := <-serverErrors:
-		if err != nil {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("Server failed: %v", err)
 		}
 		return
@@ -64,13 +59,30 @@ func main() {
 
 	defer cancel()
 
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("Server shutdown failed: %v", err)
+	shutdownErr := srv.Shutdown(shutdownCtx)
+
+	if shutdownErr != nil {
+		log.Printf("Server shutdown failed: %v", shutdownErr)
 
 		if closeErr := srv.Close(); closeErr != nil {
 			log.Printf("Force close failed: %v", closeErr)
 		}
+
+		return
 	}
 
-	log.Println("Server stopped gracefully")
+	serverErr := <-serverErrors
+
+	if serverErr != nil &&
+		!errors.Is(serverErr, http.ErrServerClosed) {
+		log.Printf("HTTP server error: %v", serverErr)
+		return
+	}
+
+	if shutdownErr != nil {
+		log.Println("Server stopped forcefully")
+		return
+	}
+
+	log.Println("Server stopped successfully")
 }
